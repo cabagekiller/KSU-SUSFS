@@ -58,8 +58,11 @@ jobs:\
         run: |\
           mkdir oneplus12_v\
           cd ./oneplus12_v\
-          repo init -u https://github.com/OnePlusOSS/kernel_manifest.git -b oneplus/sm8650 -m oneplus12_v.xml\
-          repo sync -j$(nproc)\
+       curl -Lo repo https://storage.googleapis.com/git-repo-downloads/repo
+          chmod a+x repo
+          sudo mv repo /usr/local/bin/
+          /usr/local/bin/repo init -u https://github.com/OnePlusOSS/kernel_manifest.git -b oneplus/sm8650 -m oneplus12_v.xml
+          /usr/local/bin/repo sync -j$(nproc)
           rm -rf ./kernel_platform/common/android/abi_gki_protected_exports_*\
 \
       - name: Add KernelSU\
