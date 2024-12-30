@@ -1,7 +1,6 @@
 #!/bin/bash
 
 # Check if 'builds' folder exists, create it if not
-    echo "'builds' folder not found. Creating it..."
     mkdir -p ./builds
 
 # Create the root folder with the current date and time (AM/PM)
