@@ -1,14 +1,8 @@
 #!/bin/bash
 
 # Check if 'builds' folder exists, create it if not
-if [ ! -d "./builds" ]; then
     echo "'builds' folder not found. Creating it..."
     mkdir -p ./builds
-else
-    echo "'builds' folder already exists removing it."
-    rm -rf ./builds
-    mkdir -p ./builds
-fi
 
 # Create the root folder with the current date and time (AM/PM)
 cd ./builds
