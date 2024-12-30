@@ -62,19 +62,6 @@ jobs:
           sed -i 's/ccflags-y += -DKSU_VERSION=16/ccflags-y += -DKSU_VERSION=12113/' ./Makefile
           cd ../../
 
-      - name: Add susfs
-        run: |
-          cp ../../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./KernelSU-Next/
-          cp ../../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch ./common/
-          cp ../../susfs4ksu/kernel_patches/fs/susfs.c ./common/fs/
-          cp ../../susfs4ksu/kernel_patches/include/linux/susfs.h ./common/include/linux/
-          cp ../../susfs4ksu/kernel_patches/fs/sus_su.c ./common/fs/
-          cp ../../susfs4ksu/kernel_patches/include/linux/sus_su.h ./common/include/linux/
-          cd ./KernelSU-Next/
-          patch -p1 < 10_enable_susfs_for_ksu.patch
-          cd ../common
-          patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch
-
       - name: Build Kernel
         run: |
           cd ..
