@@ -121,7 +121,7 @@ jobs:\
       - name: Create GitHub Release\
         run: |\
           gh release create "v$(date +'%Y.%m.%d-%H%M%S')" "$ZIP_NAME" \\\
-            --repo "TheWildJames/OnePlus_KernelSU_SUSFS" \\\
+            --repo "Cabagekiller/OnePlus_KernelSU_SUSFS" \\\
             --title "OP12 A15 android14-6.1 With KernelSU & SUSFS" \\\
             --notes "Kernel release" \\\
             --token $\{\{ secrets.GITHUB_TOKEN \}\}}
