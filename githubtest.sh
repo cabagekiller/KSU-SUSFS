@@ -67,7 +67,7 @@ jobs:\
 \
       - name: Add KernelSU\
         run: |\
-          cd ./kernel_platform\
+          cd ./oneplus12_v/kernel_platform  # Navigate to the correct directory
           curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next-susfs-a14-6.1\
           cd ./KernelSU-Next/kernel\
           sed -i 's/ccflags-y += -DKSU_VERSION=16/ccflags-y += -DKSU_VERSION=12113/' ./Makefile\
