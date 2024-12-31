@@ -45,16 +45,19 @@ jobs:
           git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-6.1
           git clone https://github.com/TheWildJames/kernel_patches.git
 
-      - name: Get the kernel
+     - name: Get the kernel
         run: |
           mkdir oneplus12_v
           cd ./oneplus12_v
+          pwd  # Print the current working directory
           repo init -u https://github.com/OnePlusOSS/kernel_manifest.git -b oneplus/sm8650 -m oneplus12_v.xml
-          repo sync -j$(nproc)
+          repo sync -j$(nproc) -f  # Force sync
+          pwd  # Print the current working directory again
           rm -rf ./kernel_platform/common/android/abi_gki_protected_exports_*
 
       - name: Add KernelSU
         run: |
+          pwd  # Print the current working directory
           cd ./kernel_platform
           curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next-susfs-a14-6.1
           cd ./KernelSU-Next/kernel
