@@ -65,6 +65,10 @@ jobs:\
           /usr/local/bin/repo sync -j$(nproc)
           rm -rf ./kernel_platform/common/android/abi_gki_protected_exports_*\
 \
+          - name: List contents of oneplus12_v
+  run: |
+    ls -la ./oneplus12_v\
+\
       - name: Add KernelSU\
         run: |\
           cd ./oneplus12_v/kernel_platform  # Navigate to the correct directory
