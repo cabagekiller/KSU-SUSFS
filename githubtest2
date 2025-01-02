@@ -44,6 +44,7 @@ jobs:
           git clone https://github.com/TheWildJames/AnyKernel3.git -b android14-5.15
           git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-6.1
           git clone https://github.com/TheWildJames/kernel_patches.git
+          ls -l
 
      - name: Get the kernel
         run: |
@@ -57,6 +58,7 @@ jobs:
 
       - name: Add KernelSU
         run: |
+          ls -l
           pwd  # Print the current working directory
           cd ./kernel_platform
           curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next-susfs-a14-6.1
