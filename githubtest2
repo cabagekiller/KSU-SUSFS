@@ -20,6 +20,7 @@ jobs:
 
       - name: Install dependencies
         run: |
+          set -e
           sudo apt-get update
           sudo apt-get install -y zip bc bison flex g++-multilib \
                                     gcc-multilib libc6-dev-i386 \
@@ -32,34 +33,37 @@ jobs:
         run: |
           mkdir -p ./builds
           cd ./builds
+          pwd
 
       - name: Create root folder
         run: |
-          ROOT_DIR="OP12-A15-$(date +'%Y-%m-%d-%I-%M-%p')-release"
+          export ROOT_DIR="OP12-A15-$(date +'%Y-%m-%d-%I-%M-%p')-release"
           mkdir -p "$ROOT_DIR"
           cd "$ROOT_DIR"
+          pwd
 
       - name: Clone repositories
         run: |
+          set -e
           git clone https://github.com/TheWildJames/AnyKernel3.git -b android14-5.15
           git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-6.1
           git clone https://github.com/TheWildJames/kernel_patches.git
           ls -l
 
-     - name: Get the kernel
+      - name: Get the kernel
         run: |
+          set -e
           mkdir oneplus12_v
           cd ./oneplus12_v
-          pwd  # Print the current working directory
+          pwd
           repo init -u https://github.com/OnePlusOSS/kernel_manifest.git -b oneplus/sm8650 -m oneplus12_v.xml
-          repo sync -j$(nproc) -f  # Force sync
-          pwd  # Print the current working directory again
+          repo sync -j$(nproc) -f
+          pwd
           rm -rf ./kernel_platform/common/android/abi_gki_protected_exports_*
 
       - name: Add KernelSU
         run: |
-          ls -l
-          pwd  # Print the current working directory
+          set -e
           cd ./kernel_platform
           curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next-susfs-a14-6.1
           cd ./KernelSU-Next/kernel
@@ -68,6 +72,7 @@ jobs:
 
       - name: Add susfs
         run: |
+          set -e
           cd ./kernel_platform 
           cp ../../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./KernelSU-Next/
           cp ../../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch ./common/
@@ -82,6 +87,7 @@ jobs:
 
       - name: Build Kernel
         run: |
+          set -e
           cd .. 
           echo "CONFIG_KSU=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_KSU_SUSFS=y" >> ./common/arch/arm64/configs/gki_defconfig
@@ -104,15 +110,18 @@ jobs:
       - name: Navigate to AnyKernel3
         run: |
           cd ../../AnyKernel3
+          pwd
 
       - name: Create zip file
         run: |
+          set -e
           ZIP_NAME="Anykernel3-OP-A15-android14-6.1-KernelSU-SUSFS-$(date +'%Y-%m-%d-%H-%M-%S').zip"
           zip -r "../$ZIP_NAME" ./*
           cd ..
 
       - name: Create GitHub Release
         run: |
+          set -e
           gh release create "v$(date +'%Y.%m.%d-%H%M%S')" "$ZIP_NAME" \
             --repo "Cabagekiller/OnePlus_KernelSU_SUSFS" \
             --title "OP12 A15 android14-6.1 With KernelSU & SUSFS" \
