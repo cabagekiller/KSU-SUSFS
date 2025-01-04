@@ -68,7 +68,7 @@ jobs:
 
       - name: Build Kernel
         run: |
-          cd ../..
+          cd ./oneplus12_v/kernel_platform  # Make sure you're in the correct directory
           echo "CONFIG_KSU=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_KSU_SUSFS=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> ./common/arch/arm64/configs/gki_defconfig
