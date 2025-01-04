@@ -95,7 +95,6 @@ jobs:
     fi
     ls ./kernel_platform
 
-
 - name: List contents of kernel platform to verify script path
   run: |
     cd ./builds/${ROOT_DIR}/oneplus12_v/kernel_platform
