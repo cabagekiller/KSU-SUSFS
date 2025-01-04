@@ -1,15 +1,13 @@
-
 name: Build and Release Kernel
 
 on:
   push:
     branches:
-      - main # Change to your main branch name if different
+      - main
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -17,7 +15,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.x' # Specify Python version if needed
+          python-version: '3.x'
 
       - name: Install dependencies
         run: |
@@ -26,8 +24,20 @@ jobs:
                                   gcc-multilib libc6-dev-i386 \
                                   lib32ncurses5-dev x11proto-core-dev \
                                   libx11-dev lib32z1-dev libgl1-mesa-glx \
-                                  libxml2-utils xsltproc unzip repo \
-                                  gh # Install the gh CLI
+                                  libxml2-utils xsltproc unzip \
+                                  gh
+
+      - name: Install and update repo
+        run: |
+          mkdir -p ~/bin
+          curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
+          chmod a+x ~/bin/repo
+          export PATH=~/bin:$PATH
+
+          # Remove the old repo and re-download the latest
+          rm -f /usr/bin/repo
+          curl https://storage.googleapis.com/git-repo-downloads/repo > /usr/bin/repo
+          chmod a+x /usr/bin/repo
 
       - name: Create builds folder
         run: |
@@ -50,21 +60,35 @@ jobs:
         run: |
           mkdir oneplus12_v
           cd ./oneplus12_v
-          repo init -u https://github.com/OnePlusOSS/kernel_manifest.git -b oneplus/sm8650 -m oneplus12_v.xml
-          repo sync -j$(nproc)
+          repo init -u https://github.com/OnePlusOSS/kernel_manifest.git -b oneplus/sm8650
+          repo sync -j$(nproc) -f
           rm -rf ./kernel_platform/common/android/abi_gki_protected_exports_*
 
       - name: Add KernelSU
         run: |
-          cd ./oneplus12_v/kernel_platform  # Use the full path from the workspace root
+          cd ./oneplus12_v/kernel_platform
           curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next-susfs-a14-6.1
           cd ./KernelSU-Next/kernel
           sed -i 's/ccflags-y += -DKSU_VERSION=16/ccflags-y += -DKSU_VERSION=12113/' ./Makefile
           cd ../../
 
+      - name: Add susfs
+        run: |
+          cd ./oneplus12_v/kernel_platform
+          cp ../../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./KernelSU-Next/
+          cp ../../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch ./common/
+          cp ../../susfs4ksu/kernel_patches/fs/susfs.c ./common/fs/
+          cp ../../susfs4ksu/kernel_patches/include/linux/susfs.h ./common/include/linux/
+          cp ../../susfs4ksu/kernel_patches/fs/sus_su.c ./common/fs/
+          cp ../../susfs4ksu/kernel_patches/include/linux/sus_su.h ./common/include/linux/
+          cd ./KernelSU-Next/
+          patch -p1 < 10_enable_susfs_for_ksu.patch
+          cd ../common
+          patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch
+
       - name: Build Kernel
         run: |
-          cd ..
+          cd ../..
           echo "CONFIG_KSU=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_KSU_SUSFS=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> ./common/arch/arm64/configs/gki_defconfig
@@ -76,9 +100,8 @@ jobs:
           echo "CONFIG_KSU_SUSFS_ENABLE_LOG=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_KSU_SUSFS_SUS_SU=y" >> ./common/arch/arm64/configs/gki_defconfig
-          cd ..
           sed -i '2s/check_defconfig//' ./kernel_platform/common/build.config.gki
-          ./kernel_platform/oplus/build/oplus_build_kernel.sh pineapple gki
+          bash ./kernel_platform/oplus/build/oplus_build_kernel.sh pineapple gki
 
       - name: Copy Image.lz4
         run: |
