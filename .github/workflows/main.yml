@@ -87,29 +87,24 @@ jobs:
           sed -i '2s/check_defconfig//' ./common/build.config.gki
 
       - name: Verify repo sync and check kernel platform directory
-  run: |
-    cd ./builds/${ROOT_DIR}/oneplus12_v
-    if [ ! -d "kernel_platform" ]; then
-      echo "Error: kernel_platform directory does not exist!"
-      exit 1
-    fi
-    ls ./kernel_platform
+        run: |
+          cd ./builds/${ROOT_DIR}/oneplus12_v
+          if [ ! -d "kernel_platform" ]; then
+            echo "Error: kernel_platform directory does not exist!"
+            exit 1
+          fi
+          echo "Directory kernel_platform exists. Listing contents..."
+          ls -R ./kernel_platform
 
-- name: List contents of kernel platform to verify script path
-  run: |
-    cd ./builds/${ROOT_DIR}/oneplus12_v/kernel_platform
-    ls -R
-
-- name: Build Kernel
-  run: |
-    set -e
-    cd ./builds/${ROOT_DIR}/oneplus12_v/kernel_platform
-    if [ ! -f "./oplus/build/oplus_build_kernel.sh" ]; then
-      echo "Error: oplus_build_kernel.sh script not found!"
-      exit 1
-    fi
-    bash ./oplus/build/oplus_build_kernel.sh pineapple gki
-
+      - name: Build Kernel
+        run: |
+          set -e
+          cd ./builds/${ROOT_DIR}/oneplus12_v/kernel_platform
+          if [ ! -f "./oplus/build/oplus_build_kernel.sh" ]; then
+            echo "Error: oplus_build_kernel.sh script not found!"
+            exit 1
+          fi
+          bash ./oplus/build/oplus_build_kernel.sh pineapple gki
 
       - name: Copy Kernel Image
         run: |
