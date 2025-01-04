@@ -29,15 +29,9 @@ jobs:
 
       - name: Install and update repo
         run: |
-          sudo mkdir -p ~/bin  # Use sudo here
-          sudo curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo  # Use sudo here
-          sudo chmod a+x ~/bin/repo  # Use sudo here
-          export PATH=~/bin:$PATH
-
-          # Remove the old repo and re-download the latest
-          sudo rm -f /usr/bin/repo  # Use sudo here
-          sudo curl https://storage.googleapis.com/git-repo-downloads/repo > /usr/bin/repo  # Use sudo here
-          sudo chmod a+x /usr/bin/repo  # Use sudo here
+          sudo rm -f /usr/bin/repo  # Remove the old repo
+          sudo curl https://storage.googleapis.com/git-repo-downloads/repo > /usr/bin/repo
+          sudo chmod a+x /usr/bin/repo
 
       - name: Create builds folder
         run: |
