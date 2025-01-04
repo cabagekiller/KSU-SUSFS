@@ -3,12 +3,11 @@ name: Build and Release Kernel
 on:
   push:
     branches:
-      - main 
+      - main
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -16,65 +15,54 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.x' 
+          python-version: '3.x'
 
       - name: Install dependencies
         run: |
-          set -e
           sudo apt-get update
           sudo apt-get install -y zip bc bison flex g++-multilib \
-                                    gcc-multilib libc6-dev-i386 \
-                                    lib32ncurses5-dev x11proto-core-dev \
-                                    libx11-dev lib32z1-dev libgl1-mesa-glx \
-                                    libxml2-utils xsltproc unzip repo \
-                                    gh 
+                                  gcc-multilib libc6-dev-i386 \
+                                  lib32ncurses5-dev x11proto-core-dev \
+                                  libx11-dev lib32z1-dev libgl1-mesa-glx \
+                                  libxml2-utils xsltproc unzip \
+                                  gh
+
+      - name: Install and update repo
+        run: |
+          mkdir -p ~/bin
+          curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
+          chmod a+x ~/bin/repo
+          export PATH=~/bin:$PATH
+          repo selfupdate
 
       - name: Create builds folder
         run: |
           mkdir -p ./builds
           cd ./builds
-          pwd
 
       - name: Create root folder
         run: |
-          export ROOT_DIR="OP12-A15-$(date +'%Y-%m-%d-%I-%M-%p')-release"
+          ROOT_DIR="OP12-A15-$(date +'%Y-%m-%d-%I-%M-%p')-release"
           mkdir -p "$ROOT_DIR"
           cd "$ROOT_DIR"
-          pwd
 
       - name: Clone repositories
         run: |
-          set -e
           git clone https://github.com/TheWildJames/AnyKernel3.git -b android14-5.15
           git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-6.1
           git clone https://github.com/TheWildJames/kernel_patches.git
-          ls -l
-          
-      - name: Debug: Check directory structure after cloning
-        run: |
-          pwd
-          ls -R
 
       - name: Get the kernel
         run: |
-          set -e
           mkdir oneplus12_v
           cd ./oneplus12_v
-          pwd
-          repo init -u https://github.com/OnePlusOSS/kernel_manifest.git -b oneplus/sm8650 -m oneplus12_v.xml
+          repo init -u https://github.com/OnePlusOSS/kernel_manifest.git -b oneplus/sm8650
           repo sync -j$(nproc) -f
-          pwd
           rm -rf ./kernel_platform/common/android/abi_gki_protected_exports_*
-
-      - name: Debug: Check directory structure before accessing kernel_platform
-        run: |
-          pwd
-          ls -R
 
       - name: Add KernelSU
         run: |
-          set -e
-          cd ./kernel_platform
+          cd ./oneplus12_v/kernel_platform
           curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next-susfs-a14-6.1
           cd ./KernelSU-Next/kernel
           sed -i 's/ccflags-y += -DKSU_VERSION=16/ccflags-y += -DKSU_VERSION=12113/' ./Makefile
@@ -82,8 +70,7 @@ jobs:
 
       - name: Add susfs
         run: |
-          set -e
-          cd ./kernel_platform 
+          cd ./oneplus12_v/kernel_platform
           cp ../../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./KernelSU-Next/
           cp ../../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch ./common/
           cp ../../susfs4ksu/kernel_patches/fs/susfs.c ./common/fs/
@@ -97,8 +84,7 @@ jobs:
 
       - name: Build Kernel
         run: |
-          set -e
-          cd .. 
+          cd ../..
           echo "CONFIG_KSU=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_KSU_SUSFS=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> ./common/arch/arm64/configs/gki_defconfig
@@ -110,28 +96,25 @@ jobs:
           echo "CONFIG_KSU_SUSFS_ENABLE_LOG=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_KSU_SUSFS_SUS_SU=y" >> ./common/arch/arm64/configs/gki_defconfig
-          sed -i '2s/check_defconfig//' ./common/build.config.gki
-          ./oplus/build/oplus_build_kernel.sh pineapple gki
+          sed -i '2s/check_defconfig//' ./kernel_platform/common/build.config.gki
+          bash ./kernel_platform/oplus/build/oplus_build_kernel.sh pineapple gki
 
       - name: Copy Image.lz4
         run: |
-          cp ./out/dist/Image ../../AnyKernel3/Image
+          cp ./out/dist/Image ../AnyKernel3/Image
 
       - name: Navigate to AnyKernel3
         run: |
-          cd ../../AnyKernel3
-          pwd
+          cd ../AnyKernel3
 
       - name: Create zip file
         run: |
-          set -e
           ZIP_NAME="Anykernel3-OP-A15-android14-6.1-KernelSU-SUSFS-$(date +'%Y-%m-%d-%H-%M-%S').zip"
           zip -r "../$ZIP_NAME" ./*
           cd ..
 
       - name: Create GitHub Release
         run: |
-          set -e
           gh release create "v$(date +'%Y.%m.%d-%H%M%S')" "$ZIP_NAME" \
             --repo "Cabagekiller/OnePlus_KernelSU_SUSFS" \
             --title "OP12 A15 android14-6.1 With KernelSU & SUSFS" \
