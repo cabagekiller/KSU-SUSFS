@@ -80,7 +80,7 @@ jobs:
           echo "CONFIG_KSU_SUSFS_ENABLE_LOG=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_KSU_SUSFS_SUS_SU=y" >> ./common/arch/arm64/configs/gki_defconfig
-          sed -i '2s/check_defconfig//' ./kernel_platform/common/build.config.gki
+          sed -i '2s/check_defconfig//' ./common/build.config.gki  # Correct the path
           bash ./kernel_platform/oplus/build/oplus_build_kernel.sh pineapple gki
 
       - name: Copy Image.lz4
