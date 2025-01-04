@@ -1,0 +1,92 @@
+name: Build and Release Kernel
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y zip bc bison flex g++-multilib \
+                                  gcc-multilib libc6-dev-i386 \
+                                  lib32ncurses5-dev x11proto-core-dev \
+                                  libx11-dev lib32z1-dev libgl1-mesa-glx \
+                                  libxml2-utils xsltproc unzip \
+                                  gh
+
+      - name: Install and update repo
+        run: |
+          sudo wget -O /usr/bin/repo https://storage.googleapis.com/git-repo-downloads/repo
+          sudo chmod a+x /usr/bin/repo
+
+      - name: Create build directory
+        run: mkdir -p builds
+
+      - name: Clone repositories
+        working-directory: builds
+        run: |
+          git clone https://github.com/TheWildJames/AnyKernel3.git -b android14-5.15
+          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-6.1
+          git clone https://github.com/TheWildJames/kernel_patches.git
+
+      - name: Get the kernel
+        working-directory: builds
+        run: |
+          mkdir oneplus12_v
+          cd oneplus12_v
+          repo init -u https://github.com/OnePlusOSS/kernel_manifest.git -b oneplus/sm8650 -m oneplus12_v.xml
+          repo sync -j$(nproc) -f
+          rm -rf ./kernel_platform/common/android/abi_gki_protected_exports_*
+
+      - name: Add KernelSU
+        working-directory: builds/oneplus12_v/kernel_platform
+        run: |
+          curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next-susfs-a14-6.1
+          cd ./KernelSU-Next/kernel
+          sed -i 's/ccflags-y += -DKSU_VERSION=16/ccflags-y += -DKSU_VERSION=12113/' ./Makefile
+
+      - name: Build Kernel
+        working-directory: builds/oneplus12_v/kernel_platform
+        run: |
+          echo "CONFIG_KSU=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_OVERLAYFS=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_TRY_UMOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_SPOOF_UNAME=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_ENABLE_LOG=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_SU=y" >> ./common/arch/arm64/configs/gki_defconfig
+          sed -i '2s/check_defconfig//' ./common/build.config.gki
+          bash ./oplus/build/oplus_build_kernel.sh pineapple gki
+
+      - name: Create flashable ZIP
+        working-directory: builds
+        run: |
+          cp ./oneplus12_v/out/dist/Image ./AnyKernel3/Image
+          cd ./AnyKernel3
+          ZIP_NAME="Anykernel3-OP-A15-android14-6.1-KernelSU-SUSFS-$(date +'%Y-%m-%d-%H-%M-%S').zip"
+          zip -r "../$ZIP_NAME" ./*
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: builds/*.zip
+          tag_name: "v$(date +'%Y.%m.%d-%H%M%S')"
+          name: "OP12 A15 android14-6.1 With KernelSU & SUSFS"
+          body: "Kernel release"
