@@ -5,6 +5,12 @@ on:
     branches:
       - main
 
+env:
+  ROOT_DIR_PREFIX: "OP12-A15"
+  BRANCH: "android14-6.1"
+  REPO_NAME: "Cabagekiller/OnePlus_KernelSU_SUSFS"
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -19,88 +25,86 @@ jobs:
 
       - name: Install dependencies
         run: |
+          set -e
           sudo apt-get update
           sudo apt-get install -y zip bc bison flex g++-multilib \
                                   gcc-multilib libc6-dev-i386 \
                                   lib32ncurses5-dev x11proto-core-dev \
                                   libx11-dev lib32z1-dev libgl1-mesa-glx \
-                                  libxml2-utils xsltproc unzip \
-                                  gh
+                                  libxml2-utils xsltproc unzip gh
 
-      - name: Install and update repo
+      - name: Install and update repo tool
         run: |
-          # Download repo with wget
           sudo wget -O /usr/bin/repo https://storage.googleapis.com/git-repo-downloads/repo
           sudo chmod a+x /usr/bin/repo
 
-      - name: Create builds folder
+      - name: Set up directories
         run: |
+          set -e
           mkdir -p ./builds
           cd ./builds
-
-      - name: Create root folder
-        run: |
-          ROOT_DIR="OP12-A15-$(date +'%Y-%m-%d-%I-%M-%p')-release"
+          export ROOT_DIR="${ROOT_DIR_PREFIX}-$(date +'%Y-%m-%d-%I-%M-%p')-release"
           mkdir -p "$ROOT_DIR"
-          cd "$ROOT_DIR"
 
       - name: Clone repositories
         run: |
-          git clone https://github.com/TheWildJames/AnyKernel3.git -b android14-5.15
-          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-6.1
+          cd ./builds/${ROOT_DIR}
+          git clone https://github.com/TheWildJames/AnyKernel3.git -b $BRANCH
+          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-$BRANCH
           git clone https://github.com/TheWildJames/kernel_patches.git
 
       - name: Get the kernel
         run: |
-          mkdir oneplus12_v
-          cd ./oneplus12_v
+          set -e
+          cd ./builds/${ROOT_DIR}
+          mkdir oneplus12_v && cd oneplus12_v
           repo init -u https://github.com/OnePlusOSS/kernel_manifest.git -b oneplus/sm8650 -m oneplus12_v.xml
           repo sync -j$(nproc) -f
           rm -rf ./kernel_platform/common/android/abi_gki_protected_exports_*
 
       - name: Add KernelSU
         run: |
-          cd ./oneplus12_v/kernel_platform
+          cd ./builds/${ROOT_DIR}/oneplus12_v/kernel_platform
           curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next-susfs-a14-6.1
-          cd ./KernelSU-Next/kernel
-          sed -i 's/ccflags-y += -DKSU_VERSION=16/ccflags-y += -DKSU_VERSION=12113/' ./Makefile
-          cd ../../
+          sed -i 's/ccflags-y += -DKSU_VERSION=16/ccflags-y += -DKSU_VERSION=12113/' ./KernelSU-Next/kernel/Makefile
+
+      - name: Configure Kernel
+        run: |
+          cd ./builds/${ROOT_DIR}/oneplus12_v/kernel_platform
+          cat <<EOF >> ./common/arch/arm64/configs/gki_defconfig
+          CONFIG_KSU=y
+          CONFIG_KSU_SUSFS=y
+          CONFIG_KSU_SUSFS_SUS_PATH=y
+          CONFIG_KSU_SUSFS_SUS_MOUNT=y
+          CONFIG_KSU_SUSFS_SUS_KSTAT=y
+          CONFIG_KSU_SUSFS_SUS_OVERLAYFS=y
+          CONFIG_KSU_SUSFS_TRY_UMOUNT=y
+          CONFIG_KSU_SUSFS_SPOOF_UNAME=y
+          CONFIG_KSU_SUSFS_ENABLE_LOG=y
+          CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
+          CONFIG_KSU_SUSFS_SUS_SU=y
+          EOF
+          sed -i '2s/check_defconfig//' ./common/build.config.gki
 
       - name: Build Kernel
         run: |
-          cd ./oneplus12_v/kernel_platform  # Make sure you're in the correct directory
-          echo "CONFIG_KSU=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_OVERLAYFS=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_TRY_UMOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SPOOF_UNAME=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_ENABLE_LOG=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_SU=y" >> ./common/arch/arm64/configs/gki_defconfig
-          sed -i '2s/check_defconfig//' ./common/build.config.gki  # Correct the path
+          cd ./builds/${ROOT_DIR}/oneplus12_v/kernel_platform
           bash ./kernel_platform/oplus/build/oplus_build_kernel.sh pineapple gki
 
-      - name: Copy Image.lz4
+      - name: Copy Kernel Image
         run: |
-          cp ./out/dist/Image ../AnyKernel3/Image
+          cp ./builds/${ROOT_DIR}/oneplus12_v/kernel_platform/out/dist/Image ./builds/${ROOT_DIR}/AnyKernel3/Image
 
-      - name: Navigate to AnyKernel3
+      - name: Create ZIP Package
         run: |
-          cd ../AnyKernel3
-
-      - name: Create zip file
-        run: |
-          ZIP_NAME="Anykernel3-OP-A15-android14-6.1-KernelSU-SUSFS-$(date +'%Y-%m-%d-%H-%M-%S').zip"
+          cd ./builds/${ROOT_DIR}/AnyKernel3
+          ZIP_NAME="Anykernel3-OP-A15-${BRANCH}-KernelSU-SUSFS-$(date +'%Y-%m-%d-%H-%M-%S').zip"
           zip -r "../$ZIP_NAME" ./*
-          cd ..
 
-      - name: Create GitHub Release
+      - name: Publish Release
         run: |
+          cd ./builds/${ROOT_DIR}
           gh release create "v$(date +'%Y.%m.%d-%H%M%S')" "$ZIP_NAME" \
-            --repo "Cabagekiller/OnePlus_KernelSU_SUSFS" \
-            --title "OP12 A15 android14-6.1 With KernelSU & SUSFS" \
-            --notes "Kernel release" \
-            --token ${{ secrets.GITHUB_TOKEN }}
+            --repo "$REPO_NAME" \
+            --title "OP12 A15 $BRANCH With KernelSU & SUSFS" \
+            --notes "Kernel release"
