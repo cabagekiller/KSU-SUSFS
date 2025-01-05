@@ -18,6 +18,15 @@ jobs:
       - name: Free disk space
         run: curl -fsSL https://raw.githubusercontent.com/kou/arrow/e49d8ae15583ceff03237571569099a6ad62be32/ci/scripts/util_free_space.sh | bash
 
+      - name: Add 16GB Swap Space
+        run: |
+          sudo fallocate -l 16G /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+          echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+          free -h
+
       - name: Checkout code
         uses: actions/checkout@v3
         with:
@@ -93,6 +102,16 @@ jobs:
           echo "CONFIG_KSU_SUSFS_SUS_SU=y" >> ./common/arch/arm64/configs/gki_defconfig
           sed -i '2s/check_defconfig//' ./common/build.config.gki
 
+      - name: Disable Kernel Debug Config
+        run: |
+          cd ./builds/${ROOT_DIR}/oneplus12_v/kernel_platform
+          sed -i '/CONFIG_DEBUG_KERNEL/d' ./common/arch/arm64/configs/gki_defconfig
+          sed -i '/CONFIG_DEBUG_INFO/d' ./common/arch/arm64/configs/gki_defconfig
+          sed -i '/CONFIG_DEBUG_INFO_REDUCED/d' ./common/arch/arm64/configs/gki_defconfig
+          sed -i '/CONFIG_DEBUG_FS/d' ./common/arch/arm64/configs/gki_defconfig
+          sed -i '/CONFIG_DEBUG_SECTION_MISMATCH/d' ./common/arch/arm64/configs/gki_defconfig
+          echo "# Kernel debugging disabled for production build" >> ./common/arch/arm64/configs/gki_defconfig
+
       - name: Verify repo sync and check kernel platform directory
         run: |
           cd ./builds/${ROOT_DIR}/oneplus12_v
@@ -129,6 +148,3 @@ jobs:
             --repo "$REPO_NAME" \
             --title "OP12 A15 $BRANCH With KernelSUnext & SUSFS" \
             --notes "Kernel release"
-
-      - name: Check disk space usage
-        run: df -h
