@@ -15,8 +15,22 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - name: Free disk space
+        run: curl -fsSL https://raw.githubusercontent.com/kou/arrow/e49d8ae15583ceff03237571569099a6ad62be32/ci/scripts/util_free_space.sh | bash
+
+      - name: Add 16GB Swap Space
+        run: |
+          sudo fallocate -l 16G /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+          echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+          free -h
+
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -32,10 +46,12 @@ jobs:
                                   lib32ncurses5-dev x11proto-core-dev \
                                   libx11-dev lib32z1-dev libgl1-mesa-glx \
                                   libxml2-utils xsltproc unzip gh
+
       - name: Install and update repo tool
         run: |
           sudo wget -O /usr/bin/repo https://storage.googleapis.com/git-repo-downloads/repo
           sudo chmod a+x /usr/bin/repo
+
       - name: Set up directories
         run: |
           set -e
@@ -43,12 +59,12 @@ jobs:
           cd ./builds
           export ROOT_DIR="${ROOT_DIR_PREFIX}-$(date +'%Y-%m-%d-%I-%M-%p')-release"
           mkdir -p "$ROOT_DIR"
+
       - name: Clone repositories
         run: |
           cd ./builds/${ROOT_DIR}
           git clone https://github.com/TheWildJames/AnyKernel3.git -b $BRANCH
-          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-$BRANCH
-          git clone https://github.com/TheWildJames/kernel_patches.git
+
       - name: Get the kernel
         run: |
           set -e
@@ -57,33 +73,45 @@ jobs:
           repo init -u https://github.com/OnePlusOSS/kernel_manifest.git -b oneplus/sm8650 -m oneplus12_v.xml --depth=1
           repo sync -j$(nproc) -f
           rm -rf ./kernel_platform/common/android/abi_gki_protected_exports_*
+
       - name: Add KernelSU
         run: |
           cd ./builds/${ROOT_DIR}/oneplus12_v/kernel_platform
           curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next-susfs-a14-6.1
           sed -i 's/ccflags-y += -DKSU_VERSION=16/ccflags-y += -DKSU_VERSION=12113/' ./KernelSU-Next/kernel/Makefile
+
       - name: Set KSU_GIT_VERSION
         run: |
           cd ./builds/${ROOT_DIR}/oneplus12_v/kernel_platform
           export KSU_GIT_VERSION=$(git rev-parse HEAD)
           echo "KSU_GIT_VERSION=$KSU_GIT_VERSION" >> $GITHUB_ENV
+
       - name: Configure Kernel
         run: |
           cd ./builds/${ROOT_DIR}/oneplus12_v/kernel_platform
-          cat <<EOF >> ./common/arch/arm64/configs/gki_defconfig
-          CONFIG_KSU=y
-          CONFIG_KSU_SUSFS=y
-          CONFIG_KSU_SUSFS_SUS_PATH=y
-          CONFIG_KSU_SUSFS_SUS_MOUNT=y
-          CONFIG_KSU_SUSFS_SUS_KSTAT=y
-          CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y
-          CONFIG_KSU_SUSFS_TRY_UMOUNT=y
-          CONFIG_KSU_SUSFS_SPOOF_UNAME=y
-          CONFIG_KSU_SUSFS_ENABLE_LOG=y
-          CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
-          CONFIG_KSU_SUSFS_SUS_SU=y
-          EOF
+          echo "CONFIG_KSU=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_TRY_UMOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_SPOOF_UNAME=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_ENABLE_LOG=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_SU=y" >> ./common/arch/arm64/configs/gki_defconfig
           sed -i '2s/check_defconfig//' ./common/build.config.gki
+
+      - name: Disable Kernel Debug Config
+        run: |
+          cd ./builds/${ROOT_DIR}/oneplus12_v/kernel_platform
+          sed -i '/CONFIG_DEBUG_KERNEL/d' ./common/arch/arm64/configs/gki_defconfig
+          sed -i '/CONFIG_DEBUG_INFO/d' ./common/arch/arm64/configs/gki_defconfig
+          sed -i '/CONFIG_DEBUG_INFO_REDUCED/d' ./common/arch/arm64/configs/gki_defconfig
+          sed -i '/CONFIG_DEBUG_FS/d' ./common/arch/arm64/configs/gki_defconfig
+          sed -i '/CONFIG_DEBUG_SECTION_MISMATCH/d' ./common/arch/arm64/configs/gki_defconfig
+          echo "# Kernel debugging disabled for production build" >> ./common/arch/arm64/configs/gki_defconfig
+
       - name: Verify repo sync and check kernel platform directory
         run: |
           cd ./builds/${ROOT_DIR}/oneplus12_v
@@ -93,19 +121,26 @@ jobs:
           fi
           echo "Directory kernel_platform exists. Listing contents..."
           ls -R ./kernel_platform
+
       - name: Build Kernel
         run: |
           set -e
-          cd builds/${ROOT_DIR}/oneplus12_v
-             ./kernel_platform/build_with_bazel.py -t pineapple gki
+          cd ./builds/${ROOT_DIR}/oneplus12_v
+          ./kernel_platform/build_with_bazel.py -t pineapple gki --jobs=4 --disk_cache=./bazel_cache
+          rm -rf ./kernel_platform/out/intermediate
+          docker system prune -af || true
+
       - name: Copy Kernel Image
         run: |
           cp ./builds/${ROOT_DIR}/oneplus12_v/kernel_platform/out/dist/Image ./builds/${ROOT_DIR}/AnyKernel3/Image
+
       - name: Create ZIP Package
         run: |
           cd ./builds/${ROOT_DIR}/AnyKernel3
           ZIP_NAME="Anykernel3-OP-A15-${BRANCH}-KernelSU-SUSFS-$(date +'%Y-%m-%d-%H-%M-%S').zip"
           zip -r "../$ZIP_NAME" ./*
+          ls -lh "../$ZIP_NAME"
+
       - name: Publish Release
         run: |
           cd ./builds/${ROOT_DIR}
@@ -113,3 +148,6 @@ jobs:
             --repo "$REPO_NAME" \
             --title "OP12 A15 $BRANCH With KernelSUnext & SUSFS" \
             --notes "Kernel release"
+
+      - name: Check disk space usage
+        run: df -h
