@@ -148,6 +148,3 @@ jobs:
             --repo "$REPO_NAME" \
             --title "OP12 A15 $BRANCH With KernelSUnext & SUSFS" \
             --notes "Kernel release"
-
-      - name: Check disk space usage
-        run: df -h
