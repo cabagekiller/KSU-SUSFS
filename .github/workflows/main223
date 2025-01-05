@@ -18,35 +18,36 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Cache dependencies
-        uses: actions/cache@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
-          path: /usr/local/apt/archives
-          key: ${{ runner.os }}-apt-archives-${{ hashFiles('**/apt.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-apt-archives-
+          python-version: '3.x'
 
       - name: Install dependencies
         run: |
+          set -e
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends $(cat apt.txt)
-
-      - name: Cache repo
-        uses: actions/cache@v3
-        with:
-          path: ~/repo
-          key: ${{ runner.os }}-repo-${{ hashFiles('**/repo.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-repo-
+          sudo apt-get install -y zip bc bison flex g++-multilib \
+                                  gcc-multilib libc6-dev-i386 \
+                                  lib32ncurses5-dev x11proto-core-dev \
+                                  libx11-dev lib32z1-dev libgl1-mesa-glx \
+                                  libxml2-utils xsltproc unzip gh
 
       - name: Install and update repo tool
-        if: steps.cache-repo.outputs.cache-hit != 'true'
         run: |
           sudo wget -O /usr/bin/repo https://storage.googleapis.com/git-repo-downloads/repo
           sudo chmod a+x /usr/bin/repo
 
+      - name: Clean up disk space
+        run: |
+          sudo apt-get clean
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/hostedtoolcache
+          sudo rm -rf /usr/share/dotnet
+
       - name: Set up directories
         run: |
+          set -e
           mkdir -p ./builds
           cd ./builds
           export ROOT_DIR="${ROOT_DIR_PREFIX}-$(date +'%Y-%m-%d-%I-%M-%p')-release"
@@ -59,17 +60,9 @@ jobs:
           git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-$BRANCH
           git clone https://github.com/TheWildJames/kernel_patches.git
 
-      - name: Cache kernel source
-        uses: actions/cache@v3
-        with:
-          path: ./builds/${ROOT_DIR}/oneplus12_v
-          key: ${{ runner.os }}-kernel-source-${{ hashFiles('**/oneplus12_v.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-kernel-source-
-
       - name: Get the kernel
-        if: steps.cache-kernel-source.outputs.cache-hit != 'true'
         run: |
+          set -e
           cd ./builds/${ROOT_DIR}
           mkdir oneplus12_v && cd oneplus12_v
           repo init -u https://github.com/OnePlusOSS/kernel_manifest.git -b oneplus/sm8650 -m oneplus12_v.xml
@@ -112,36 +105,13 @@ jobs:
 
       - name: Build Kernel
         run: |
+          set -e
           cd builds/${ROOT_DIR}/oneplus12_v
-          ./kernel_platform/oplus/build/oplus_build.sh -t user -p SM8650 -b kernel
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: kernel-build
-          path: ./builds/${ROOT_DIR}/oneplus12_v/kernel_platform/out/dist/Image
-
-  package:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download build artifacts
-        uses: actions/download-artifact@v3
-        with:
-          name: kernel-build
-
-      - name: Set up directories
-        run: |
-          mkdir -p ./builds
-          cd ./builds
-          export ROOT_DIR="${ROOT_DIR_PREFIX}-$(date +'%Y-%m-%d-%I-%M-%p')-release"
-          mkdir -p "$ROOT_DIR"
-          cd ./builds/${ROOT_DIR}
-          git clone https://github.com/TheWildJames/AnyKernel3.git -b $BRANCH
+             ./kernel_platform/build_with_bazel.py -t pineapple gki
 
       - name: Copy Kernel Image
         run: |
-          cp ./kernel-build/Image ./builds/${ROOT_DIR}/AnyKernel3/Image
+          cp ./builds/${ROOT_DIR}/oneplus12_v/kernel_platform/out/dist/Image ./builds/${ROOT_DIR}/AnyKernel3/Image
 
       - name: Create ZIP Package
         run: |
@@ -149,24 +119,10 @@ jobs:
           ZIP_NAME="Anykernel3-OP-A15-${BRANCH}-KernelSU-SUSFS-$(date +'%Y-%m-%d-%H-%M-%S').zip"
           zip -r "../$ZIP_NAME" ./*
 
-      - name: Upload release artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: kernel-release
-          path: ./builds/${ROOT_DIR}/${ZIP_NAME}
-
-  release:
-    needs: package
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download release artifacts
-        uses: actions/download-artifact@v3
-        with:
-          name: kernel-release
-
       - name: Publish Release
         run: |
-          gh release create "v$(date +'%Y.%m.%d-%H%M%S')" "*.zip" \
+          cd ./builds/${ROOT_DIR}
+          gh release create "v$(date +'%Y.%m.%d-%H%M%S')" "$ZIP_NAME" \
             --repo "$REPO_NAME" \
             --title "OP12 A15 $BRANCH With KernelSU & SUSFS" \
             --notes "Kernel release"
