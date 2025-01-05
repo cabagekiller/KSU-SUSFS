@@ -31,7 +31,7 @@ jobs:
                                   gcc-multilib libc6-dev-i386 \
                                   lib32ncurses5-dev x11proto-core-dev \
                                   libx11-dev lib32z1-dev libgl1-mesa-glx \
-                                  libxml2-utils xsltproc unzip gh
+                                  libxml2-utils xsltproc unzip
 
       - name: Install and update repo tool
         run: |
@@ -49,9 +49,14 @@ jobs:
       - name: Clone repositories
         run: |
           cd ./builds/${ROOT_DIR}
-          git clone https://github.com/TheWildJames/AnyKernel3.git -b $BRANCH
-          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-$BRANCH
-          git clone https://github.com/TheWildJames/kernel_patches.git
+          git clone https://github.com/TheWildJames/AnyKernel3.git -b $BRANCH --depth 1
+          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-$BRANCH --depth 1
+          git clone https://github.com/TheWildJames/kernel_patches.git --depth 1
+
+      - name: Clean git repositories
+        run: |
+          cd ./builds/${ROOT_DIR}
+          rm -rf AnyKernel3/.git kernel_patches/.git susfs4ksu/.git
 
       - name: Get the kernel
         run: |
@@ -92,6 +97,11 @@ jobs:
           EOF
           sed -i '2s/check_defconfig//' ./common/build.config.gki
 
+      - name: Clean up after cloning repos
+        run: |
+          cd ./builds/${ROOT_DIR}
+          git clean -fdx
+
       - name: Verify repo sync and check kernel platform directory
         run: |
           cd ./builds/${ROOT_DIR}/oneplus12_v
@@ -102,21 +112,29 @@ jobs:
           echo "Directory kernel_platform exists. Listing contents..."
           ls -R ./kernel_platform
 
-      - name: Build Kernel
+      - name: Build Kernel without cache
         run: |
           set -e
           cd ./builds/${ROOT_DIR}/oneplus12_v
-          ./kernel_platform/build_with_bazel.py -t pineapple gki
+          ./kernel_platform/build_with_bazel.py -t pineapple gki --no-cache
+
+      - name: Clean up intermediate files after build
+        run: |
+          rm -rf ./builds/${ROOT_DIR}/oneplus12_v/kernel_platform/out/dist/*
 
       - name: Copy Kernel Image
         run: |
           cp ./builds/${ROOT_DIR}/oneplus12_v/kernel_platform/out/dist/Image ./builds/${ROOT_DIR}/AnyKernel3/Image
 
+      - name: Remove old artifacts
+        run: |
+          rm -rf ./builds/${ROOT_DIR}/AnyKernel3/*
+
       - name: Create ZIP Package
         run: |
           cd ./builds/${ROOT_DIR}/AnyKernel3
           ZIP_NAME="Anykernel3-OP-A15-${BRANCH}-KernelSU-SUSFS-$(date +'%Y-%m-%d-%H-%M-%S').zip"
-          zip -r "../$ZIP_NAME" ./*
+          zip -r "../$ZIP_NAME" ./Image
 
       - name: Publish Release
         run: |
