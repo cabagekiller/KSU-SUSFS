@@ -52,8 +52,6 @@ jobs:
         run: |
           cd ./builds/${ROOT_DIR}
           git clone https://github.com/TheWildJames/AnyKernel3.git -b $BRANCH
-          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-$BRANCH
-          git clone https://github.com/TheWildJames/kernel_patches.git
 
       - name: Get the kernel
         run: |
