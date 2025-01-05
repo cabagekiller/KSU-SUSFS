@@ -100,7 +100,7 @@ jobs:
         run: |
           set -e
           cd builds/${ROOT_DIR}/oneplus12_v
-             ./kernel_platform/build_with_bazel.py --targets pineapple gki
+             ./kernel_platform/build_with_bazel.py -t pineapple gki
 
       - name: Copy Kernel Image
         run: |
