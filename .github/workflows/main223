@@ -1,0 +1,172 @@
+name: Build and Release Kernel
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  ROOT_DIR_PREFIX: "OP12-A15"
+  BRANCH: "android14-6.1"
+  REPO_NAME: "Cabagekiller/OnePlus_KernelSU_SUSFS"
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: /usr/local/apt/archives
+          key: ${{ runner.os }}-apt-archives-${{ hashFiles('**/apt.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-apt-archives-
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends $(cat apt.txt)
+
+      - name: Cache repo
+        uses: actions/cache@v3
+        with:
+          path: ~/repo
+          key: ${{ runner.os }}-repo-${{ hashFiles('**/repo.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-repo-
+
+      - name: Install and update repo tool
+        if: steps.cache-repo.outputs.cache-hit != 'true'
+        run: |
+          sudo wget -O /usr/bin/repo https://storage.googleapis.com/git-repo-downloads/repo
+          sudo chmod a+x /usr/bin/repo
+
+      - name: Set up directories
+        run: |
+          mkdir -p ./builds
+          cd ./builds
+          export ROOT_DIR="${ROOT_DIR_PREFIX}-$(date +'%Y-%m-%d-%I-%M-%p')-release"
+          mkdir -p "$ROOT_DIR"
+
+      - name: Clone repositories
+        run: |
+          cd ./builds/${ROOT_DIR}
+          git clone https://github.com/TheWildJames/AnyKernel3.git -b $BRANCH
+          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-$BRANCH
+          git clone https://github.com/TheWildJames/kernel_patches.git
+
+      - name: Cache kernel source
+        uses: actions/cache@v3
+        with:
+          path: ./builds/${ROOT_DIR}/oneplus12_v
+          key: ${{ runner.os }}-kernel-source-${{ hashFiles('**/oneplus12_v.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-kernel-source-
+
+      - name: Get the kernel
+        if: steps.cache-kernel-source.outputs.cache-hit != 'true'
+        run: |
+          cd ./builds/${ROOT_DIR}
+          mkdir oneplus12_v && cd oneplus12_v
+          repo init -u https://github.com/OnePlusOSS/kernel_manifest.git -b oneplus/sm8650 -m oneplus12_v.xml
+          repo sync -j$(nproc) -f
+          rm -rf ./kernel_platform/common/android/abi_gki_protected_exports_*
+
+      - name: Add KernelSU
+        run: |
+          cd ./builds/${ROOT_DIR}/oneplus12_v/kernel_platform
+          curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next-susfs-a14-6.1
+          sed -i 's/ccflags-y += -DKSU_VERSION=16/ccflags-y += -DKSU_VERSION=12113/' ./KernelSU-Next/kernel/Makefile
+
+      - name: Configure Kernel
+        run: |
+          cd ./builds/${ROOT_DIR}/oneplus12_v/kernel_platform
+          cat <<EOF >> ./common/arch/arm64/configs/gki_defconfig
+          CONFIG_KSU=y
+          CONFIG_KSU_SUSFS=y
+          CONFIG_KSU_SUSFS_SUS_PATH=y
+          CONFIG_KSU_SUSFS_SUS_MOUNT=y
+          CONFIG_KSU_SUSFS_SUS_KSTAT=y
+          CONFIG_KSU_SUSFS_SUS_OVERLAYFS=y
+          CONFIG_KSU_SUSFS_TRY_UMOUNT=y
+          CONFIG_KSU_SUSFS_SPOOF_UNAME=y
+          CONFIG_KSU_SUSFS_ENABLE_LOG=y
+          CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
+          CONFIG_KSU_SUSFS_SUS_SU=y
+          EOF
+          sed -i '2s/check_defconfig//' ./common/build.config.gki
+
+      - name: Verify repo sync and check kernel platform directory
+        run: |
+          cd ./builds/${ROOT_DIR}/oneplus12_v
+          if [ ! -d "kernel_platform" ]; then
+            echo "Error: kernel_platform directory does not exist!"
+            exit 1
+          fi
+          echo "Directory kernel_platform exists. Listing contents..."
+          ls -R ./kernel_platform
+
+      - name: Build Kernel
+        run: |
+          cd builds/${ROOT_DIR}/oneplus12_v
+          ./kernel_platform/oplus/build/oplus_build.sh -t user -p SM8650 -b kernel
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: kernel-build
+          path: ./builds/${ROOT_DIR}/oneplus12_v/kernel_platform/out/dist/Image
+
+  package:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: kernel-build
+
+      - name: Set up directories
+        run: |
+          mkdir -p ./builds
+          cd ./builds
+          export ROOT_DIR="${ROOT_DIR_PREFIX}-$(date +'%Y-%m-%d-%I-%M-%p')-release"
+          mkdir -p "$ROOT_DIR"
+          cd ./builds/${ROOT_DIR}
+          git clone https://github.com/TheWildJames/AnyKernel3.git -b $BRANCH
+
+      - name: Copy Kernel Image
+        run: |
+          cp ./kernel-build/Image ./builds/${ROOT_DIR}/AnyKernel3/Image
+
+      - name: Create ZIP Package
+        run: |
+          cd ./builds/${ROOT_DIR}/AnyKernel3
+          ZIP_NAME="Anykernel3-OP-A15-${BRANCH}-KernelSU-SUSFS-$(date +'%Y-%m-%d-%H-%M-%S').zip"
+          zip -r "../$ZIP_NAME" ./*
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: kernel-release
+          path: ./builds/${ROOT_DIR}/${ZIP_NAME}
+
+  release:
+    needs: package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download release artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: kernel-release
+
+      - name: Publish Release
+        run: |
+          gh release create "v$(date +'%Y.%m.%d-%H%M%S')" "*.zip" \
+            --repo "$REPO_NAME" \
+            --title "OP12 A15 $BRANCH With KernelSU & SUSFS" \
+            --notes "Kernel release"
