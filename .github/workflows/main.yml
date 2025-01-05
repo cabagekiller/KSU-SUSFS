@@ -100,7 +100,7 @@ jobs:
         run: |
           set -e
           cd builds/${ROOT_DIR}/oneplus12_v
-             ./kernel_platform/oplus/build/oplus_build.sh -t user -p SM8650 -b kernel
+             ./kernel_platform/build_with_bazel.py --targets pineapple gki
 
       - name: Copy Kernel Image
         run: |
