@@ -99,12 +99,8 @@ jobs:
       - name: Build Kernel
         run: |
           set -e
-          cd ./builds/${ROOT_DIR}/oneplus12_v/kernel_platform
-          if [ ! -f "./oplus/build/oplus_build_kernel.sh" ]; then
-            echo "Error: oplus_build_kernel.sh script not found!"
-            exit 1
-          fi
-          sh ./oplus/build/oplus_build_kernel.sh pineapple gki
+          cd builds/${ROOT_DIR}/oneplus12_v
+             ./kernel_platform/oplus/build/oplus_build.sh -t user -p SM8650 -b kernel
 
       - name: Copy Kernel Image
         run: |
