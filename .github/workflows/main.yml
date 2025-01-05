@@ -104,7 +104,7 @@ jobs:
             echo "Error: oplus_build_kernel.sh script not found!"
             exit 1
           fi
-          bash ./oplus/build/oplus_build_kernel.sh pineapple gki
+          sh ./oplus/build/oplus_build_kernel.sh pineapple gki
 
       - name: Copy Kernel Image
         run: |
