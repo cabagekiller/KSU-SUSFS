@@ -68,6 +68,12 @@ jobs:
           curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next-susfs-a14-6.1
           sed -i 's/ccflags-y += -DKSU_VERSION=16/ccflags-y += -DKSU_VERSION=12113/' ./KernelSU-Next/kernel/Makefile
 
+      - name: Set KSU_GIT_VERSION
+        run: |
+          cd ./builds/${ROOT_DIR}/oneplus12_v/kernel_platform
+          export KSU_GIT_VERSION=$(git rev-parse HEAD)
+          echo "KSU_GIT_VERSION=$KSU_GIT_VERSION" >> $GITHUB_ENV
+
       - name: Configure Kernel
         run: |
           cd ./builds/${ROOT_DIR}/oneplus12_v/kernel_platform
@@ -77,7 +83,7 @@ jobs:
           CONFIG_KSU_SUSFS_SUS_PATH=y
           CONFIG_KSU_SUSFS_SUS_MOUNT=y
           CONFIG_KSU_SUSFS_SUS_KSTAT=y
-          CONFIG_KSU_SUSFS_SUS_OVERLAYFS=y
+          CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y
           CONFIG_KSU_SUSFS_TRY_UMOUNT=y
           CONFIG_KSU_SUSFS_SPOOF_UNAME=y
           CONFIG_KSU_SUSFS_ENABLE_LOG=y
@@ -99,8 +105,8 @@ jobs:
       - name: Build Kernel
         run: |
           set -e
-          cd builds/${ROOT_DIR}/oneplus12_v
-             ./kernel_platform/build_with_bazel.py -t pineapple gki
+          cd ./builds/${ROOT_DIR}/oneplus12_v
+          ./kernel_platform/build_with_bazel.py -t pineapple gki
 
       - name: Copy Kernel Image
         run: |
@@ -117,5 +123,5 @@ jobs:
           cd ./builds/${ROOT_DIR}
           gh release create "v$(date +'%Y.%m.%d-%H%M%S')" "$ZIP_NAME" \
             --repo "$REPO_NAME" \
-            --title "OP12 A15 $BRANCH With KernelSU & SUSFS" \
+            --title "OP12 A15 $BRANCH With KernelSUnext & SUSFS" \
             --notes "Kernel release"
