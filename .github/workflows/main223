@@ -62,6 +62,11 @@ jobs:
           cd ./builds/${ROOT_DIR}/oneplus12_v/kernel_platform
           curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next-susfs-a14-6.1
           sed -i 's/ccflags-y += -DKSU_VERSION=16/ccflags-y += -DKSU_VERSION=12113/' ./KernelSU-Next/kernel/Makefile
+      - name: Set KSU_GIT_VERSION
+        run: |
+          cd ./builds/${ROOT_DIR}/oneplus12_v/kernel_platform
+          export KSU_GIT_VERSION=$(git rev-parse HEAD)
+          echo "KSU_GIT_VERSION=$KSU_GIT_VERSION" >> $GITHUB_ENV
       - name: Configure Kernel
         run: |
           cd ./builds/${ROOT_DIR}/oneplus12_v/kernel_platform
