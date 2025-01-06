@@ -46,6 +46,7 @@ jobs:
                                       lib32ncurses5-dev x11proto-core-dev \
                                       libx11-dev lib32z1-dev libgl1-mesa-glx \
                                       libxml2-utils xsltproc unzip gh
+          sudo apt-get install -y --only-upgrade git repo
 
       - name: Install and update repo tool
         run: |
@@ -89,6 +90,10 @@ jobs:
       - name: Configure Kernel
         run: |
           cd ./builds/${ROOT_DIR}/oneplus12_v/kernel_platform
+          if [ ! -f "./common/arch/arm64/configs/gki_defconfig" ]; then
+            echo "Error: gki_defconfig file not found!"
+            exit 1
+          fi
           cat <<EOF >> ./common/arch/arm64/configs/gki_defconfig
           CONFIG_KSU=y
           CONFIG_KSU_SUSFS=y
@@ -128,7 +133,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ./clang-aosp
-          key: clang-r522817
+          key: clang-${{ hashFiles('**/clang-aosp/clang-r522817.tar.gz') }}
 
       - name: Download Clang-aosp
         run: |
@@ -142,7 +147,7 @@ jobs:
           wget -O gcc-aarch64.tar.gz https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/+archive/refs/tags/android-12.1.0_r27.tar.gz
           tar -C gcc-64/ -zxvf gcc-aarch64.tar.gz
           
-      - name: Build Kernel 
+      - name: Build Kernel
         run: |
           cd ./builds/${ROOT_DIR}/oneplus12_v/kernel_platform
 
@@ -154,10 +159,21 @@ jobs:
           export KBUILD_BUILD_USER=$(echo cabagekiller | tr A-Z a-z)
           BA_CMD="CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-android-"
           EX_CMD="LD=ld.lld LLVM=1 LLVM_IAS=1"
-          
-          make O=out ARCH=arm64 CC=clang $BA_CMD $EX_CMD common/arch/arm64/configs/gki_defconfig
-          
-          make -j$(nproc --all) O=out ARCH=arm64 CC=clang $BA_CMD $EX_CMD
+
+          if ! make O=out ARCH=arm64 CC=clang $BA_CMD $EX_CMD common/arch/arm64/configs/gki_defconfig; then
+            echo "Kernel configuration failed!"
+            exit 1
+          fi
+
+          MAKEJOBS=$(nproc --all)
+          if [ "$MAKEJOBS" -gt 4 ]; then
+            MAKEJOBS=4
+          fi
+
+          if ! make -j${MAKEJOBS} O=out ARCH=arm64 CC=clang $BA_CMD $EX_CMD; then
+            echo "Kernel build failed!"
+            exit 1
+          fi
 
       - name: Upload Build Logs
         uses: actions/upload-artifact@v3
@@ -167,6 +183,10 @@ jobs:
 
       - name: Copy Kernel Image
         run: |
+          if [ ! -f "./builds/${ROOT_DIR}/oneplus12_v/kernel_platform/out/dist/Image" ]; then
+            echo "Error: Kernel image not found!"
+            exit 1
+          fi
           cp ./builds/${ROOT_DIR}/oneplus12_v/kernel_platform/out/dist/Image ./builds/${ROOT_DIR}/AnyKernel3/Image
 
       - name: Create ZIP Package
@@ -179,7 +199,7 @@ jobs:
       - name: Publish Release
         run: |
           cd ./builds/${ROOT_DIR}
-          gh release create "v$(date +'%Y.%m.%d-%H%M%S')" "$ZIP_NAME" \
+          gh release create "v${BRANCH}-$(date +'%Y.%m.%d-%H%M%S')" "$ZIP_NAME" \
             --repo "$REPO_NAME" \
             --title "OP12 A15 $BRANCH With KernelSUnext & SUSFS" \
             --notes "Kernel release"
