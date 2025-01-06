@@ -109,6 +109,24 @@ jobs:
           cp ../kernel_patches/Makefile_fix.patch ./
           patch -p1 --fuzz=3 < ./Makefile_fix.patch
 
+      - name: Configure Kernel
+        run: |
+          cd ./builds/${ROOT_DIR}/oneplus12_v/kernel_platform
+          cat <<EOF >> ./common/arch/arm64/configs/gki_defconfig
+          CONFIG_KSU=y
+          CONFIG_KSU_SUSFS=y
+          CONFIG_KSU_SUSFS_SUS_PATH=y
+          CONFIG_KSU_SUSFS_SUS_MOUNT=y
+          CONFIG_KSU_SUSFS_SUS_KSTAT=y
+          CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y
+          CONFIG_KSU_SUSFS_TRY_UMOUNT=y
+          CONFIG_KSU_SUSFS_SPOOF_UNAME=y
+          CONFIG_KSU_SUSFS_ENABLE_LOG=y
+          CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
+          CONFIG_KSU_SUSFS_SUS_SU=y
+          EOF
+          sed -i '2s/check_defconfig//' ./common/build.config.gki
+
       # Clear Bazel Cache (if issues persist)
       - name: Clear Bazel Cache
         run: |
