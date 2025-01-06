@@ -155,7 +155,7 @@ jobs:
           BA_CMD="CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-android-"
           EX_CMD="LD=ld.lld LLVM=1 LLVM_IAS=1"
           
-          make O=out ARCH=arm64 CC=clang $BA_CMD $EX_CMD common/arch/arm64/configs/gki_defconfig # Corrected line
+          make O=out ARCH=arm64 CC=clang $BA_CMD $EX_CMD common/arch/arm64/configs/gki_defconfig
           
           make -j$(nproc --all) O=out ARCH=arm64 CC=clang $BA_CMD $EX_CMD
 
