@@ -123,11 +123,6 @@ jobs:
           EOF
           sed -i '2s/check_defconfig//' ./common/build.config.gki
 
-      - name: Clear Bazel Cache
-        run: |
-          cd ./builds/${ROOT_DIR}/oneplus12_v
-          bazel clean --expunge
-
       - name: Check Disk Space Before Build
         run: df -h
 
