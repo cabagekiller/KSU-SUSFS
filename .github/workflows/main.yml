@@ -99,12 +99,6 @@ jobs:
           sed -i '/obj-\$(CONFIG_KSU_SUSFS_SUS_SU) += sus_su.o/d' ./fs/Makefile
           cd ..
 
-          cp ../../kernel_patches/69_hide_stuff.patch ./  # Changed path here
-          if ! patch -p1 -F 3 < 69_hide_stuff.patch; then
-            echo "Error applying 69_hide_stuff.patch"
-            exit 1
-          fi
-
       - name: Set KSU_GIT_VERSION 
         run: |
           cd ./builds/${ROOT_DIR}/oneplus12_v/kernel_platform
