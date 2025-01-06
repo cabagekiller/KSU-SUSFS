@@ -87,19 +87,27 @@ jobs:
       - name: Add KernelSU
         run: |
           cd ./builds/${ROOT_DIR}/oneplus12_v/kernel_platform
-          curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next
+          curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -
           echo "adding susfs"
-          cp ../../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./KernelSU-Next/
+          cp ../../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./KernelSU/
           cp ../../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch ./common/
           cp ../../susfs4ksu/kernel_patches/fs/susfs.c ./common/fs/
           cp ../../susfs4ksu/kernel_patches/include/linux/susfs.h ./common/include/linux/
           cp ../../susfs4ksu/kernel_patches/include/linux/susfs_def.h ./common/include/linux/
-          cd ./KernelSU-Next/
+          cd ./KernelSU/
           patch -p1 < 10_enable_susfs_for_ksu.patch
           cd ../common
           patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch || true
           sed -i '/obj-\$(CONFIG_KSU_SUSFS_SUS_SU) += sus_su.o/d' ./fs/Makefile
           cd ..
+          cp ../kernel_patches/selinux.c_fix.patch ./
+          patch -p1 -F 3 < selinux.c_fix.patch
+          cp ../kernel_patches/apk_sign.c_fix.patch ./
+          patch -p1 -F 3 < apk_sign.c_fix.patch
+          cp ../../kernel_patches/69_hide_stuff.patch ./
+          patch -p1 -F 3 < 69_hide_stuff.patch || true
+          cp ../kernel_patches/Makefile_fix.patch ./
+          patch -p1 --fuzz=3 < ./Makefile_fix.patch
 
       - name: Configure Kernel
         run: |
@@ -110,7 +118,7 @@ jobs:
           CONFIG_KSU_SUSFS_SUS_PATH=y
           CONFIG_KSU_SUSFS_SUS_MOUNT=y
           CONFIG_KSU_SUSFS_SUS_KSTAT=y
-          CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y
+          CONFIG_KSU_SUSFS_SUS_OVERLAYFS=y
           CONFIG_KSU_SUSFS_TRY_UMOUNT=y
           CONFIG_KSU_SUSFS_SPOOF_UNAME=y
           CONFIG_KSU_SUSFS_ENABLE_LOG=y
