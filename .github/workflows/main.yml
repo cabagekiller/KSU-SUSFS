@@ -90,14 +90,6 @@ jobs:
           patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch || true
           sed -i '/obj-\$(CONFIG_KSU_SUSFS_SUS_SU) += sus_su.o/d' ./fs/Makefile
           cd ..
-          # Updated path to selinux.c_fix.patch
-          cp ../../susfs4ksu/kernel_patches/selinux.c_fix.patch ./ 
-          patch -p1 -F 3 < selinux.c_fix.patch
-          cp ../../susfs4ksu/kernel_patches/apk_sign.c_fix.patch ./
-          patch -p1 -F 3 < apk_sign.c_fix.patch
-          cp ../../susfs4ksu/kernel_patches/Makefile_fix.patch ./
-          patch -p1 --fuzz=3 < ./Makefile_fix.patch
-
 
       - name: Set KSU_GIT_VERSION
         run: |
