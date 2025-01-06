@@ -42,10 +42,10 @@ jobs:
           set -e
           sudo apt-get update
           sudo apt-get install -y zip bc bison flex g++-multilib \
-                                  gcc-multilib libc6-dev-i386 \
-                                  lib32ncurses5-dev x11proto-core-dev \
-                                  libx11-dev lib32z1-dev libgl1-mesa-glx \
-                                  libxml2-utils xsltproc unzip gh
+                                      gcc-multilib libc6-dev-i386 \
+                                      lib32ncurses5-dev x11proto-core-dev \
+                                      libx11-dev lib32z1-dev libgl1-mesa-glx \
+                                      libxml2-utils xsltproc unzip gh
 
       - name: Install and update repo tool
         run: |
@@ -77,7 +77,7 @@ jobs:
       - name: Add KernelSU
         run: |
           cd ./builds/${ROOT_DIR}/oneplus12_v/kernel_platform
-          curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next-susfs-a14-6.1
+          curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next-susfs
           sed -i 's/ccflags-y += -DKSU_VERSION=16/ccflags-y += -DKSU_VERSION=12113/' ./KernelSU-Next/kernel/Makefile
 
       - name: Set KSU_GIT_VERSION
@@ -122,13 +122,36 @@ jobs:
           echo "Directory kernel_platform exists. Listing contents..."
           ls -R ./kernel_platform
 
-      - name: Build Kernel
+      - name: Download Clang-aosp
         run: |
-          set -e
-          cd ./builds/${ROOT_DIR}/oneplus12_v
-          ./kernel_platform/build_with_bazel.py -t pineapple gki --jobs=4 --disk_cache=./bazel_cache
-          rm -rf ./kernel_platform/out/intermediate
-          docker system prune -af || true
+          cd $GITHUB_WORKSPACE
+          mkdir kernel_workspace
+          cd kernel_workspace
+          mkdir clang-aosp
+          wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r522817.tar.gz
+          tar -C clang-aosp/ -zxvf clang-r522817.tar.gz
+
+      - name: Download Gcc-aosp
+        run: |
+          cd $GITHUB_WORKSPACE/kernel_workspace
+          mkdir gcc-64
+          wget -O gcc-aarch64.tar.gz https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/+archive/refs/tags/android-12.1.0_r27.tar.gz
+          tar -C gcc-64/ -zxvf gcc-aarch64.tar.gz
+
+      - name: Build Kernel 
+        run: |
+          cd $GITHUB_WORKSPACE/builds/${ROOT_DIR}/oneplus12_v/kernel_platform # This is the corrected path
+          export ARCH=arm64
+          export SUBARCH=arm64
+          export BRAND_SHOW_FLAG=oneplus
+          export PATH=$GITHUB_WORKSPACE/kernel_workspace/clang-aosp/bin:$GITHUB_WORKSPACE/kernel_workspace/gcc-64/bin:$PATH
+          export KBUILD_BUILD_HOST=Github-Action
+          export KBUILD_BUILD_USER=$(echo ${{ github.actor }} | tr A-Z a-z)
+          BA_CMD="CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-android-"
+          EX_CMD="LD=ld.lld LLVM=1 LLVM_IAS=1"
+          DEFCONFIG="vendor/kona-perf_defconfig vendor/debugfs.config"
+          make O=out ARCH=arm64 CC=clang $BA_CMD $EX_CMD $DEFCONFIG
+          make -j$(nproc --all) O=out ARCH=arm64 CC=clang $BA_CMD $EX_CMD
 
       - name: Copy Kernel Image
         run: |
