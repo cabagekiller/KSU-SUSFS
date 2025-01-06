@@ -84,6 +84,7 @@ jobs:
       - name: Add KernelSU
         run: |
           cd ./builds/${ROOT_DIR}/oneplus12_v/kernel_platform
+          pwd  # Print the current working directory 
           curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -
           echo "adding susfs"
           cp ../../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./KernelSU/
@@ -99,25 +100,25 @@ jobs:
           cd ..
 
           # Apply patches (with error checking)
-          cp ../kernel_patches/selinux.c_fix.patch ./
+          cp ../../kernel_patches/selinux.c_fix.patch ./  # Changed path here
           if ! patch -p1 -F 3 < selinux.c_fix.patch; then
             echo "Error applying selinux.c_fix.patch"
             exit 1
           fi
 
-          cp ../kernel_patches/apk_sign.c_fix.patch ./
+          cp ../../kernel_patches/apk_sign.c_fix.patch ./  # Changed path here
           if ! patch -p1 -F 3 < apk_sign.c_fix.patch; then
             echo "Error applying apk_sign.c_fix.patch"
             exit 1
           fi
 
-          cp ../../kernel_patches/69_hide_stuff.patch ./
+          cp ../../kernel_patches/69_hide_stuff.patch ./  # Changed path here
           if ! patch -p1 -F 3 < 69_hide_stuff.patch; then
             echo "Error applying 69_hide_stuff.patch"
             exit 1
           fi
 
-          cp ../kernel_patches/Makefile_fix.patch ./
+          cp ../../kernel_patches/Makefile_fix.patch ./  # Changed path here
           if ! patch -p1 --fuzz=3 < ./Makefile_fix.patch; then
             echo "Error applying Makefile_fix.patch"
             exit 1
