@@ -153,7 +153,7 @@ jobs:
           cd ./builds/${ROOT_DIR}
           echo "ZIP_NAME: $ZIP_NAME" 
           ZIP_FILE_PATH="$GITHUB_WORKSPACE/builds/${ROOT_DIR}/$ZIP_NAME" # Construct the absolute path
-          gh release create -v "v${BRANCH}-$(date +'%Y.%m.%d-%H%M%S')" "$ZIP_FILE_PATH" \
+          gh release create "v${BRANCH}-$(date +'%Y.%m.%d-%H%M%S')" "$ZIP_FILE_PATH" \
             --repo "$REPO_NAME" \
             --title "OP12 A15 $BRANCH With KernelSU & SUSFS" \
             --notes "Kernel release"
