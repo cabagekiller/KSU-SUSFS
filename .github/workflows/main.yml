@@ -89,17 +89,19 @@ jobs:
       - name: Configure Kernel
         run: |
           cd ./builds/${ROOT_DIR}/oneplus12_v/kernel_platform
-          echo "CONFIG_KSU=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_TRY_UMOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SPOOF_UNAME=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_ENABLE_LOG=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_SU=y" >> ./common/arch/arm64/configs/gki_defconfig
+          cat <<EOF >> ./common/arch/arm64/configs/gki_defconfig
+          CONFIG_KSU=y
+          CONFIG_KSU_SUSFS=y
+          CONFIG_KSU_SUSFS_SUS_PATH=y
+          CONFIG_KSU_SUSFS_SUS_MOUNT=y
+          CONFIG_KSU_SUSFS_SUS_KSTAT=y
+          CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y
+          CONFIG_KSU_SUSFS_TRY_UMOUNT=y
+          CONFIG_KSU_SUSFS_SPOOF_UNAME=y
+          CONFIG_KSU_SUSFS_ENABLE_LOG=y
+          CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
+          CONFIG_KSU_SUSFS_SUS_SU=y
+          EOF
           sed -i '2s/check_defconfig//' ./common/build.config.gki
 
       - name: Disable Kernel Debug Config
@@ -122,36 +124,44 @@ jobs:
           echo "Directory kernel_platform exists. Listing contents..."
           ls -R ./kernel_platform
 
+      - name: Cache Clang
+        uses: actions/cache@v3
+        with:
+          path: ./clang-aosp
+          key: clang-r522817
+
       - name: Download Clang-aosp
         run: |
-          cd $GITHUB_WORKSPACE
-          mkdir kernel_workspace
-          cd kernel_workspace
           mkdir clang-aosp
           wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r522817.tar.gz
           tar -C clang-aosp/ -zxvf clang-r522817.tar.gz
 
       - name: Download Gcc-aosp
         run: |
-          cd $GITHUB_WORKSPACE/kernel_workspace
           mkdir gcc-64
           wget -O gcc-aarch64.tar.gz https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/+archive/refs/tags/android-12.1.0_r27.tar.gz
           tar -C gcc-64/ -zxvf gcc-aarch64.tar.gz
 
       - name: Build Kernel 
         run: |
-          cd $GITHUB_WORKSPACE/builds/${ROOT_DIR}/oneplus12_v/kernel_platform # This is the corrected path
+          cd ./builds/${ROOT_DIR}/oneplus12_v/kernel_platform
           export ARCH=arm64
           export SUBARCH=arm64
           export BRAND_SHOW_FLAG=oneplus
-          export PATH=$GITHUB_WORKSPACE/kernel_workspace/clang-aosp/bin:$GITHUB_WORKSPACE/kernel_workspace/gcc-64/bin:$PATH
+          export PATH=$GITHUB_WORKSPACE/clang-aosp/bin:$GITHUB_WORKSPACE/gcc-64/bin:$PATH
           export KBUILD_BUILD_HOST=Github-Action
           export KBUILD_BUILD_USER=$(echo ${{ github.actor }} | tr A-Z a-z)
           BA_CMD="CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-android-"
           EX_CMD="LD=ld.lld LLVM=1 LLVM_IAS=1"
-          DEFCONFIG="vendor/kona-perf_defconfig vendor/debugfs.config"
+          DEFCONFIG="/common/arch/arm64/configs/gki_defconfig"
           make O=out ARCH=arm64 CC=clang $BA_CMD $EX_CMD $DEFCONFIG
           make -j$(nproc --all) O=out ARCH=arm64 CC=clang $BA_CMD $EX_CMD
+
+      - name: Upload Build Logs
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-logs
+          path: ./builds/${ROOT_DIR}/oneplus12_v/kernel_platform/out/
 
       - name: Copy Kernel Image
         run: |
