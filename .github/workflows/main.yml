@@ -127,9 +127,7 @@ jobs:
           set -e
           cd ./builds/${ROOT_DIR}/oneplus12_v
           ./kernel_platform/build_with_bazel.py -t pineapple gki --jobs=4 --disk_cache=./bazel_cache
-          rm -rf ./kernel_platform/out/intermediate
-          docker system prune -af || true
-
+         
       - name: Copy Kernel Image
         run: |
           cp ./builds/${ROOT_DIR}/oneplus12_v/kernel_platform/out/dist/Image ./builds/${ROOT_DIR}/AnyKernel3/Image
