@@ -100,7 +100,7 @@ jobs:
           cd ..
 
           # Apply patches (with error checking)
-          cp ../../kernel_patches/selinux.c_fix.patch ./  # Changed path here
+          cp ../../kernel_patches/selinux.c_fix.patch ./  
           if ! patch -p1 -F 3 < selinux.c_fix.patch; then
             echo "Error applying selinux.c_fix.patch"
             exit 1
