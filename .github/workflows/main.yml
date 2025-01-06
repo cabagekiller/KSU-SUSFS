@@ -105,12 +105,6 @@ jobs:
             exit 1
           fi
 
-          cp ../../kernel_patches/Makefile_fix.patch ./  # Changed path here
-          if ! patch -p1 --fuzz=3 < ./Makefile_fix.patch; then
-            echo "Error applying Makefile_fix.patch"
-            exit 1
-          fi 
-
       - name: Set KSU_GIT_VERSION 
         run: |
           cd ./builds/${ROOT_DIR}/oneplus12_v/kernel_platform
