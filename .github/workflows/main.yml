@@ -15,11 +15,12 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      # Free Disk Space
       - name: Free disk space
-        run: curl -fsSL https://raw.githubusercontent.com/kou/arrow/e49d8ae15583ceff03237571569099a6ad62be32/ci/scripts/util_free_space.sh | bash
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -qq curl
+          curl -fsSL https://raw.githubusercontent.com/kou/arrow/e49d8ae15583ceff03237571569099a6ad62be32/ci/scripts/util_free_space.sh | bash
 
-      # Add Swap Space
       - name: Add 16GB Swap Space
         run: |
           sudo fallocate -l 16G /swapfile
@@ -29,36 +30,35 @@ jobs:
           echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
           free -h
 
-      # Checkout Repository
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v3.5.3 
         with:
           fetch-depth: 1
 
-      # Set up Python
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v4.7.1
         with:
           python-version: '3.x'
 
-      # Install Dependencies
       - name: Install dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y zip bc bison flex g++-multilib \
-                                  gcc-multilib libc6-dev-i386 \
-                                  lib32ncurses5-dev x11proto-core-dev \
-                                  libx11-dev lib32z1-dev libgl1-mesa-glx \
-                                  libxml2-utils xsltproc unzip gh
-          sudo apt-get install -y --only-upgrade git repo
+          sudo apt-get update -qq
+          sudo apt-get install -qq -y zip bc bison flex g++-multilib gcc-multilib libc6-dev-i386 \
+                                     lib32ncurses5-dev x11proto-core-dev libx11-dev lib32z1-dev \
+                                     libgl1-mesa-glx libxml2-utils xsltproc unzip gh git repo
 
-      # Install and Update Repo Tool
       - name: Install and update repo tool
+        uses: actions/cache@v3
+        with:
+          path: /usr/bin/repo
+          key: repo-tool
+
+      - name: Download repo tool (if not cached)
+        if: steps.cache-repo.outputs.cache-hit != 'true'
         run: |
           sudo wget -O /usr/bin/repo https://storage.googleapis.com/git-repo-downloads/repo
           sudo chmod a+x /usr/bin/repo
 
-      # Set up Directories
       - name: Set up directories
         run: |
           mkdir -p ./builds
@@ -66,7 +66,6 @@ jobs:
           export ROOT_DIR="${ROOT_DIR_PREFIX}-$(date +'%Y-%m-%d-%I-%M-%p')-release"
           mkdir -p "$ROOT_DIR"
 
-      # Clone Repositories
       - name: Clone repositories
         run: |
           cd ./builds/${ROOT_DIR}
@@ -74,7 +73,6 @@ jobs:
           git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-6.1
           git clone https://github.com/TheWildJames/kernel_patches.git
 
-      # Get the Kernel
       - name: Get the kernel
         run: |
           cd ./builds/${ROOT_DIR}
@@ -83,7 +81,6 @@ jobs:
           repo sync -j$(nproc) -f
           rm -rf ./kernel_platform/common/android/abi_gki_protected_exports_*
 
-      # Add KernelSU
       - name: Add KernelSU
         run: |
           cd ./builds/${ROOT_DIR}/oneplus12_v/kernel_platform
@@ -100,14 +97,37 @@ jobs:
           patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch || true
           sed -i '/obj-\$(CONFIG_KSU_SUSFS_SUS_SU) += sus_su.o/d' ./fs/Makefile
           cd ..
+
+          # Apply patches (with error checking)
           cp ../kernel_patches/selinux.c_fix.patch ./
-          patch -p1 -F 3 < selinux.c_fix.patch
+          if ! patch -p1 -F 3 < selinux.c_fix.patch; then
+            echo "Error applying selinux.c_fix.patch"
+            exit 1
+          fi
+
           cp ../kernel_patches/apk_sign.c_fix.patch ./
-          patch -p1 -F 3 < apk_sign.c_fix.patch
+          if ! patch -p1 -F 3 < apk_sign.c_fix.patch; then
+            echo "Error applying apk_sign.c_fix.patch"
+            exit 1
+          fi
+
           cp ../../kernel_patches/69_hide_stuff.patch ./
-          patch -p1 -F 3 < 69_hide_stuff.patch || true
+          if ! patch -p1 -F 3 < 69_hide_stuff.patch; then
+            echo "Error applying 69_hide_stuff.patch"
+            exit 1
+          fi
+
           cp ../kernel_patches/Makefile_fix.patch ./
-          patch -p1 --fuzz=3 < ./Makefile_fix.patch
+          if ! patch -p1 --fuzz=3 < ./Makefile_fix.patch; then
+            echo "Error applying Makefile_fix.patch"
+            exit 1
+          fi 
+
+      - name: Set KSU_GIT_VERSION 
+        run: |
+          cd ./builds/${ROOT_DIR}/oneplus12_v/kernel_platform
+          export KSU_GIT_VERSION=$(git rev-parse HEAD)
+          echo "KSU_GIT_VERSION=$KSU_GIT_VERSION" >> $GITHUB_ENV
 
       - name: Configure Kernel
         run: |
@@ -127,27 +147,22 @@ jobs:
           EOF
           sed -i '2s/check_defconfig//' ./common/build.config.gki
 
-      # Clear Bazel Cache (if issues persist)
       - name: Clear Bazel Cache
         run: |
           cd ./builds/${ROOT_DIR}/oneplus12_v
           bazel clean --expunge
 
-      # Check Disk Space Before Build
       - name: Check Disk Space Before Build
         run: df -h
 
-      # Configure and Build Kernel
       - name: Build Kernel with Debugging
         run: |
           cd ./builds/${ROOT_DIR}/oneplus12_v
           ./kernel_platform/build_with_bazel.py -t pineapple gki --verbose_failures > build_debug.log 2>&1 || (cat build_debug.log && exit 1)
 
-      # Check Disk Space After Build
       - name: Check Disk Space After Build
         run: df -h
 
-      # Upload Build Logs
       - name: Upload Build Logs
         if: failure()
         uses: actions/upload-artifact@v3
@@ -155,7 +170,6 @@ jobs:
           name: build-logs
           path: ./builds/${ROOT_DIR}/oneplus12_v/build_debug.log
 
-      # Create ZIP Package and Publish Release
       - name: Create ZIP Package
         run: |
           cd ./builds/${ROOT_DIR}/AnyKernel3
@@ -167,6 +181,6 @@ jobs:
         run: |
           cd ./builds/${ROOT_DIR}
           gh release create "v${BRANCH}-$(date +'%Y.%m.%d-%H%M%S')" "$ZIP_NAME" \
-            --repo "$REPO_NAME" \
-            --title "OP12 A15 $BRANCH With KernelSU & SUSFS" \
-            --notes "Kernel release"
+              --repo "$REPO_NAME" \
+              --title "OP12 A15 $BRANCH With KernelSU & SUSFS" \
+              --notes "Kernel release"
