@@ -81,13 +81,13 @@ jobs:
       - name: Add KernelSU
         run: |
           cd ./builds/${ROOT_DIR}/oneplus12_v/kernel_platform
-          curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next
+          curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -
           echo "adding susfs"
-          cp ../../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./KernelSU-Next/
+          cp ../../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./KernelSU/
           cp ../../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch ./common/
           cp ../../susfs4ksu/kernel_patches/fs/susfs.c ./common/fs/
           cp ../../susfs4ksu/kernel_patches/include/linux/susfs.h ./common/include/linux/
-          cd ./KernelSU-Next/
+          cd ./KernelSU/
           patch -p1 < 10_enable_susfs_for_ksu.patch
           cd ../common
           patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch || true
@@ -202,5 +202,5 @@ jobs:
           cd ./builds/${ROOT_DIR}
           gh release create "v${BRANCH}-$(date +'%Y.%m.%d-%H%M%S')" "$ZIP_NAME" \
             --repo "$REPO_NAME" \
-            --title "OP12 A15 $BRANCH With KernelSUnext & SUSFS" \
+            --title "OP12 A15 $BRANCH With KernelSU & SUSFS" \
             --notes "Kernel release"
