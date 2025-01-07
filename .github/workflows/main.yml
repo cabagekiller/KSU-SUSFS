@@ -77,6 +77,7 @@ jobs:
       - name: Add SUSFS
         run: |
           cd ./builds/${ROOT_DIR}/oneplus12_v/kernel_platform
+          curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -
           echo "adding susfs"
           cp ../../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./KernelSU/
           cp ../../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch ./common/
