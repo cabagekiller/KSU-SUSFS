@@ -92,13 +92,13 @@ jobs:
           patch -p1 -F 3 < 69_hide_stuff.patch
           sed -i '/obj-$(CONFIG_KSU_SUSFS_SUS_SU) += sus_su.o/d' ./fs/Makefile
           cd ..
-          cp ../../../kernel_patches/selinux.c_fix.patch ./
+          cp ../../kernel_patches/selinux.c_fix.patch ./
           patch -p1 -F 3 < selinux.c_fix.patch
-          cp ../../../kernel_patches/apk_sign.c_fix.patch ./
+          cp ../../kernel_patches/apk_sign.c_fix.patch ./
           patch -p1 -F 3 < apk_sign.c_fix.patch
-          cp ../../../kernel_patches/Makefile_fix.patch ./
+          cp ../../kernel_patches/Makefile_fix.patch ./
           patch -p1 --fuzz=3 < ./Makefile_fix.patch
-          cp ../../../kernel_patches/core_hook.c_fix.patch ./
+          cp ../../kernel_patches/core_hook.c_fix.patch ./
           patch -p1 --fuzz=3 < ./core_hook.c_fix.patch
       - name: Set KSU_GIT_VERSION 
         run: |
@@ -141,7 +141,6 @@ jobs:
           zip -r "../$ZIP_NAME" ./*
           ls -lh "../$ZIP_NAME"
           echo "zip_name=$ZIP_NAME" >> $GITHUB_ENV  # Use GITHUB_ENV to persist the variable across steps
-
       - name: Publish Release
         run: |
           cd ./builds/${ROOT_DIR}
@@ -153,4 +152,3 @@ jobs:
             --notes "Kernel release"
         env: 
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
-
