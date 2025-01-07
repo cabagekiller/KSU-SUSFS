@@ -8,7 +8,7 @@ on:
 env:
   ROOT_DIR_PREFIX: "OP12-A15"
   BRANCH: "android14-6.1"
-  REPO_NAME: "Cabagekiller/OnePlus_KernelSU_SUSFS"
+  REPO_NAME: "cabagekiller/KSU-SUSFS"
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
@@ -131,20 +131,24 @@ jobs:
           path: ./builds/${ROOT_DIR}/oneplus12_v/build_debug.log
 
       - name: Create ZIP Package
+        id: create-zip-package  # Give this step an ID so it can be referenced later
         run: |
           cd ./builds/${ROOT_DIR}/AnyKernel3
-          ZIP_NAME="Anykernel3-OP-A15-${BRANCH}-KernelSU-SUSFS-$(date +'%Y-%m-%d-%H-%M-%S').zip"
+          ZIP_NAME="Anykernel3-OP-A15-android14-6.1-KernelSU-SUSFS-$(date +'%Y-%m-%d-%H-%M-%S').zip"
+          echo "Creating zip file $ZIP_NAME..."
           zip -r "../$ZIP_NAME" ./*
           ls -lh "../$ZIP_NAME"
-          echo "zip_name=$ZIP_NAME" >> $GITHUB_OUTPUT 
+          echo "zip_name=$ZIP_NAME" >> $GITHUB_ENV  # Use GITHUB_ENV to persist the variable across steps
+
       - name: Publish Release
         run: |
           cd ./builds/${ROOT_DIR}
-          echo "ZIP_NAME: ${{ steps.create-zip-package.outputs.zip_name }}"
-          ZIP_FILE_PATH="$GITHUB_WORKSPACE/builds/${ROOT_DIR}/${{ steps.create-zip-package.outputs.zip_name }}"
+          echo "ZIP_NAME: $ZIP_NAME"  # You can echo the ZIP_NAME for debugging
+          ZIP_FILE_PATH="$GITHUB_WORKSPACE/builds/${ROOT_DIR}/${ZIP_NAME}"
           gh release create "v${BRANCH}-$(date +'%Y.%m.%d-%H%M%S')" "$ZIP_FILE_PATH" \
             --repo "$REPO_NAME" \
             --title "OP12 A15 $BRANCH With KernelSU & SUSFS" \
             --notes "Kernel release"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
+        env: 
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
