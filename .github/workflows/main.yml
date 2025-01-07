@@ -147,12 +147,13 @@ jobs:
           ZIP_NAME="Anykernel3-OP-A15-${BRANCH}-KernelSU-SUSFS-$(date +'%Y-%m-%d-%H-%M-%S').zip"
           zip -r "../$ZIP_NAME" ./*
           ls -lh "../$ZIP_NAME"
+          echo "zip_name=$ZIP_NAME" >> $GITHUB_OUTPUT 
 
       - name: Publish Release
         run: |
           cd ./builds/${ROOT_DIR}
-          echo "ZIP_NAME: $ZIP_NAME" 
-          ZIP_FILE_PATH="$GITHUB_WORKSPACE/builds/${ROOT_DIR}/$ZIP_NAME" # Construct the absolute path
+          echo "ZIP_NAME: ${{ steps.create-zip-package.outputs.zip_name }}"
+          ZIP_FILE_PATH="$GITHUB_WORKSPACE/builds/${ROOT_DIR}/${{ steps.create-zip-package.outputs.zip_name }}"
           gh release create "v${BRANCH}-$(date +'%Y.%m.%d-%H%M%S')" "$ZIP_FILE_PATH" \
             --repo "$REPO_NAME" \
             --title "OP12 A15 $BRANCH With KernelSU & SUSFS" \
