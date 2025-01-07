@@ -119,16 +119,9 @@ jobs:
       - name: Build Kernel with Debugging
         run: |
           cd ./builds/${ROOT_DIR}/oneplus12_v
-          ./kernel_platform/build_with_bazel.py -t pineapple gki --verbose_failures > build_debug.log 2>&1 || (cat build_debug.log && exit 1)
+          ./kernel_platform/build_with_bazel.py -t pineapple gki
       - name: Check Disk Space After Build
         run: df -h
-
-      - name: Upload Build Logs
-        if: failure()
-        uses: actions/upload-artifact@v3
-        with:
-          name: build-logs
-          path: ./builds/${ROOT_DIR}/oneplus12_v/build_debug.log
 
       - name: Create ZIP Package
         id: create-zip-package  # Give this step an ID so it can be referenced later
