@@ -9,13 +9,11 @@ env:
   ROOT_DIR_PREFIX: "OP12-A15"
   BRANCH: "android14-6.1"
   REPO_NAME: "cabagekiller/KSU-SUSFS"
-  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-       releases: write # Grant write access to releases
     steps:
       - name: Free disk space
         run: |
@@ -153,5 +151,5 @@ jobs:
             --title "OP12 A15 $BRANCH With KernelSU & SUSFS" \
             --notes "Kernel release"
         env: 
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
 
