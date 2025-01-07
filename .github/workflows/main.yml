@@ -123,6 +123,16 @@ jobs:
           EOF
           sed -i '2s/check_defconfig//' ./common/build.config.gki
 
+      - name: Disable Kernel Debug Config
+        run: |
+          cd ./builds/${ROOT_DIR}/oneplus12_v/kernel_platform
+          sed -i '/CONFIG_DEBUG_KERNEL/d' ./common/arch/arm64/configs/gki_defconfig
+          sed -i '/CONFIG_DEBUG_INFO/d' ./common/arch/arm64/configs/gki_defconfig
+          sed -i '/CONFIG_DEBUG_INFO_REDUCED/d' ./common/arch/arm64/configs/gki_defconfig
+          sed -i '/CONFIG_DEBUG_FS/d' ./common/arch/arm64/configs/gki_defconfig
+          sed -i '/CONFIG_DEBUG_SECTION_MISMATCH/d' ./common/arch/arm64/configs/gki_defconfig
+          echo "# Kernel debugging disabled for production build" >> ./common/arch/arm64/configs/gki_defconfig
+
       - name: Check Disk Space Before Build
         run: df -h
 
