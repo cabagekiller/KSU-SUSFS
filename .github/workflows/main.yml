@@ -120,7 +120,8 @@ jobs:
       - name: Build Kernel with Debugging
         run: |
           cd ./builds/${ROOT_DIR}/oneplus12_v
-          ./kernel_platform/build_with_bazel.py -t pineapple gki -j$(nproc --all)
+          ./kernel_platform/tools/bazel build --jobs=$(nproc --all) --//msm-kernel:skip_abi=true --//msm-kernel:skip_abl=true --config=stamp --user_kmi_symbol_lists=//msm-kernel:android/abi_gki_aarch64_qcom --ignore_missing_projects //msm-kernel:pineapple_gki_dist //msm-kernel:pineapple_gki_dtc_dist
+
       - name: Check Disk Space After Build
         run: df -h
 
