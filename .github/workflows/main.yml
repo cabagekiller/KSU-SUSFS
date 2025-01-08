@@ -120,7 +120,7 @@ jobs:
       - name: Build Kernel with Debugging
         run: |
           cd ./builds/${ROOT_DIR}/oneplus12_v
-          ./kernel_platform/build_with_bazel.py -t pineapple gki
+          ./kernel_platform/build_with_bazel.py -t pineapple gki -j$(nproc --all)
       - name: Check Disk Space After Build
         run: df -h
 
