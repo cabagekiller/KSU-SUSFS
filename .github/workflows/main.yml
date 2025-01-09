@@ -126,16 +126,16 @@ jobs:
         run: df -h
 
       - name: Create ZIP Package
-        working-directory: builds/${{ env.ROOT_DIR }}/oneplus12_v
+        working-directory: builds/${{ env.ROOT_DIR }} 
         run: |
-          cp kernel_platform/out/dist/Image AnyKernel3/Image
-          cp kernel_platform/out/dist/Image.lz4 AnyKernel3/Image.lz4       
+          cp oneplus12_v/kernel_platform/out/dist/Image AnyKernel3/Image
+          cp oneplus12_v/kernel_platform/out/dist/Image.lz4 AnyKernel3/Image.lz4
           cd AnyKernel3
           ZIP_NAME="Anykernel3-OP-A15-android14-6.1-KernelSU-SUSFS-$(date +'%Y-%m-%d-%H-%M-%S').zip"
           echo "Creating zip file $ZIP_NAME..."
           zip -r "../$ZIP_NAME" ./*
           ls -lh "../$ZIP_NAME"
-          echo "zip_name=$ZIP_NAME" >> $GITHUB_ENV  # Use GITHUB_ENV to persist the variable across steps
+          echo "zip_name=$ZIP_NAME" >> $GITHUB_ENV      
       - name: Publish Release
         run: |
          cd ./builds/${ROOT_DIR}
