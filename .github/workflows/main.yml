@@ -128,6 +128,7 @@ jobs:
       - name: Create ZIP Package
         id: create-zip-package  # Give this step an ID so it can be referenced later
         run: |
+         cp ./out/dist/Image ../AnyKernel3/Image
          cd ./builds/${ROOT_DIR}/AnyKernel3
          ZIP_NAME="Anykernel3-OP-A15-android14-6.1-KernelSU-SUSFS-$(date +'%Y-%m-%d-%H-%M-%S').zip"
          echo "Creating zip file $ZIP_NAME..."
